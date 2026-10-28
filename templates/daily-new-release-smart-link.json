@@ -1,0 +1,176 @@
+{
+  "name": "Daily new release to Smart Link",
+  "nodes": [
+    {
+      "id": "every-morning",
+      "name": "Every Morning",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "create-or-refresh-smart-links",
+      "name": "Create or Refresh Smart Links",
+      "type": "n8n-nodes-dynamoi.dynamoi",
+      "typeVersion": 1,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "resource": "smartLink",
+        "operation": "createForArtist",
+        "spotifyArtistUrl": "https://open.spotify.com/artist/REPLACE_WITH_YOUR_ARTIST_ID"
+      },
+      "credentials": {
+        "dynamoiOAuth2Api": {
+          "id": "",
+          "name": "Dynamoi account"
+        }
+      }
+    },
+    {
+      "id": "split-smart-links",
+      "name": "Split Smart Links",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "fieldToSplitOut": "smartLinks",
+        "options": {}
+      }
+    },
+    {
+      "id": "only-new-today",
+      "name": "Only New Today",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "new-today",
+              "leftValue": "={{ $json.createdAt }}",
+              "rightValue": "={{ $now.minus({ days: 1 }).toISO() }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "after"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "post-to-discord",
+      "name": "Post to Discord",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "parameters": {
+        "authentication": "webhook",
+        "content": "=New Smart Link ready: {{ $json.releaseTitle }} by {{ $json.artistName }}\n{{ $json.publicUrl }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "setup",
+      "name": "Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -220
+      ],
+      "parameters": {
+        "content": "**Daily new release to Smart Link**\n1. Connect your Dynamoi account.\n2. Paste your Spotify artist URL.\n3. Add a Discord webhook credential, or swap the last node for Slack.\n\nNew releases get a Smart Link the first time they appear on Spotify. Existing links are refreshed, not duplicated.",
+        "width": 420,
+        "height": 220
+      }
+    }
+  ],
+  "connections": {
+    "Every Morning": {
+      "main": [
+        [
+          {
+            "node": "Create or Refresh Smart Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or Refresh Smart Links": {
+      "main": [
+        [
+          {
+            "node": "Split Smart Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Smart Links": {
+      "main": [
+        [
+          {
+            "node": "Only New Today",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Only New Today": {
+      "main": [
+        [
+          {
+            "node": "Post to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

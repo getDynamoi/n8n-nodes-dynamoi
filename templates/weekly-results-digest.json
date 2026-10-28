@@ -1,0 +1,306 @@
+{
+  "name": "Weekly results digest",
+  "nodes": [
+    {
+      "id": "every-monday",
+      "name": "Every Monday",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "get-artist-analytics",
+      "name": "Get Artist Analytics",
+      "type": "n8n-nodes-dynamoi.dynamoi",
+      "typeVersion": 1,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "resource": "analytics",
+        "operation": "getArtist",
+        "artistId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {
+          "startDate": "={{ $now.minus({ days: 7 }).toISODate() }}",
+          "endDate": "={{ $now.toISODate() }}",
+          "granularity": "TOTAL"
+        }
+      },
+      "credentials": {
+        "dynamoiOAuth2Api": {
+          "id": "",
+          "name": "Dynamoi account"
+        }
+      }
+    },
+    {
+      "id": "get-smart-links",
+      "name": "Get Smart Links",
+      "type": "n8n-nodes-dynamoi.dynamoi",
+      "typeVersion": 1,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "resource": "smartLink",
+        "operation": "list",
+        "artistId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "returnAll": true
+      },
+      "credentials": {
+        "dynamoiOAuth2Api": {
+          "id": "",
+          "name": "Dynamoi account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "get-active-campaigns",
+      "name": "Get Active Campaigns",
+      "type": "n8n-nodes-dynamoi.dynamoi",
+      "typeVersion": 1,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "resource": "campaign",
+        "operation": "list",
+        "artistId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "returnAll": true,
+        "filters": {
+          "status": "ACTIVE"
+        }
+      },
+      "credentials": {
+        "dynamoiOAuth2Api": {
+          "id": "",
+          "name": "Dynamoi account"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "build-digest",
+      "name": "Build Digest",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "week",
+              "type": "string",
+              "value": "={{ $now.minus({ days: 7 }).toISODate() }} to {{ $now.toISODate() }}"
+            },
+            {
+              "id": "a2",
+              "name": "smartLinks",
+              "type": "number",
+              "value": "={{ $('Get Smart Links').all().filter(i => i.json.id).length }}"
+            },
+            {
+              "id": "a3",
+              "name": "activeCampaigns",
+              "type": "number",
+              "value": "={{ $('Get Active Campaigns').all().filter(i => i.json.id).length }}"
+            },
+            {
+              "id": "a4",
+              "name": "impressions",
+              "type": "number",
+              "value": "={{ $('Get Artist Analytics').first().json.totals.impressions }}"
+            },
+            {
+              "id": "a5",
+              "name": "clicks",
+              "type": "number",
+              "value": "={{ $('Get Artist Analytics').first().json.totals.clicks }}"
+            },
+            {
+              "id": "a6",
+              "name": "message",
+              "type": "string",
+              "value": "=Dynamoi weekly results ({{ $now.minus({ days: 7 }).toISODate() }} to {{ $now.toISODate() }})\nSmart Links: {{ $('Get Smart Links').all().filter(i => i.json.id).length }}\nActive campaigns: {{ $('Get Active Campaigns').all().filter(i => i.json.id).length }}\nImpressions: {{ $('Get Artist Analytics').first().json.totals.impressions }}\nClicks: {{ $('Get Artist Analytics').first().json.totals.clicks }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "post-to-slack",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1300,
+        -80
+      ],
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#music"
+        },
+        "text": "={{ $json.message }}",
+        "otherOptions": {}
+      }
+    },
+    {
+      "id": "add-to-google-sheets",
+      "name": "Add to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1300,
+        100
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "disabled": true
+    },
+    {
+      "id": "setup",
+      "name": "Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -240
+      ],
+      "parameters": {
+        "content": "**Weekly results digest**\n1. Connect your Dynamoi account and pick the artist in the three Dynamoi nodes.\n2. Choose a Slack channel.\n3. Optional: enable \"Add to Google Sheets\" to keep a weekly log. Create a sheet with the columns week, smartLinks, activeCampaigns, impressions and clicks.",
+        "width": 460,
+        "height": 220
+      }
+    }
+  ],
+  "connections": {
+    "Every Monday": {
+      "main": [
+        [
+          {
+            "node": "Get Artist Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Artist Analytics": {
+      "main": [
+        [
+          {
+            "node": "Get Smart Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Smart Links": {
+      "main": [
+        [
+          {
+            "node": "Get Active Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Build Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Digest": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Add to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

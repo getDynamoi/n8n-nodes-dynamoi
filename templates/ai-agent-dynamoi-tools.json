@@ -1,0 +1,316 @@
+{
+  "name": "AI agent with Dynamoi tools",
+  "nodes": [
+    {
+      "id": "when-chat-message-received",
+      "name": "When Chat Message Received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-agent",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        420,
+        0
+      ],
+      "parameters": {
+        "promptType": "auto",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "You help a music artist or label manager with their Dynamoi account. Use the Dynamoi tools to find artists, create Smart Links from Spotify releases, and read Smart Link, audience and campaign results. Answer briefly and include the Smart Link URL whenever you create or find one."
+        }
+      }
+    },
+    {
+      "id": "chat-model",
+      "name": "Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        140,
+        300
+      ],
+      "parameters": {
+        "options": {}
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "id": "chat-memory",
+      "name": "Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1400,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "list-artists",
+      "name": "List Artists",
+      "type": "n8n-nodes-dynamoi.dynamoiTool",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ],
+      "parameters": {
+        "resource": "artist",
+        "operation": "list",
+        "returnAll": true,
+        "descriptionType": "manual",
+        "toolDescription": "List the artists in the Dynamoi account. Use this first to find an artist ID."
+      },
+      "credentials": {
+        "dynamoiOAuth2Api": {
+          "id": "",
+          "name": "Dynamoi account"
+        }
+      }
+    },
+    {
+      "id": "create-smart-link",
+      "name": "Create Smart Link",
+      "type": "n8n-nodes-dynamoi.dynamoiTool",
+      "typeVersion": 1,
+      "position": [
+        520,
+        300
+      ],
+      "parameters": {
+        "resource": "smartLink",
+        "operation": "createFromRelease",
+        "artistId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $fromAI('artistId', 'Artist ID from the List Artists tool', 'string') }}"
+        },
+        "spotifyUrl": "={{ $fromAI('spotifyUrl', 'Spotify album or track URL', 'string') }}",
+        "descriptionType": "manual",
+        "toolDescription": "Create a Smart Link from a Spotify release URL for an artist."
+      },
+      "credentials": {
+        "dynamoiOAuth2Api": {
+          "id": "",
+          "name": "Dynamoi account"
+        }
+      }
+    },
+    {
+      "id": "get-smart-links",
+      "name": "Get Smart Links",
+      "type": "n8n-nodes-dynamoi.dynamoiTool",
+      "typeVersion": 1,
+      "position": [
+        740,
+        300
+      ],
+      "parameters": {
+        "resource": "smartLink",
+        "operation": "list",
+        "artistId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $fromAI('artistId', 'Artist ID from the List Artists tool', 'string') }}"
+        },
+        "returnAll": false,
+        "limit": 10,
+        "descriptionType": "manual",
+        "toolDescription": "List the Smart Links for an artist, newest first."
+      },
+      "credentials": {
+        "dynamoiOAuth2Api": {
+          "id": "",
+          "name": "Dynamoi account"
+        }
+      }
+    },
+    {
+      "id": "get-artist-analytics",
+      "name": "Get Artist Analytics",
+      "type": "n8n-nodes-dynamoi.dynamoiTool",
+      "typeVersion": 1,
+      "position": [
+        960,
+        300
+      ],
+      "parameters": {
+        "resource": "analytics",
+        "operation": "getArtist",
+        "artistId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $fromAI('artistId', 'Artist ID from the List Artists tool', 'string') }}"
+        },
+        "options": {
+          "granularity": "TOTAL"
+        },
+        "descriptionType": "manual",
+        "toolDescription": "Get click and audience totals for an artist."
+      },
+      "credentials": {
+        "dynamoiOAuth2Api": {
+          "id": "",
+          "name": "Dynamoi account"
+        }
+      }
+    },
+    {
+      "id": "get-campaigns",
+      "name": "Get Campaigns",
+      "type": "n8n-nodes-dynamoi.dynamoiTool",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        300
+      ],
+      "parameters": {
+        "resource": "campaign",
+        "operation": "list",
+        "artistId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $fromAI('artistId', 'Artist ID from the List Artists tool', 'string') }}"
+        },
+        "returnAll": false,
+        "limit": 10,
+        "descriptionType": "manual",
+        "toolDescription": "List campaigns for an artist with their status."
+      },
+      "credentials": {
+        "dynamoiOAuth2Api": {
+          "id": "",
+          "name": "Dynamoi account"
+        }
+      }
+    },
+    {
+      "id": "setup",
+      "name": "Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        -240
+      ],
+      "parameters": {
+        "content": "**AI agent with Dynamoi tools**\n1. Connect your Dynamoi account on each Dynamoi tool.\n2. Pick any chat model. OpenAI is shown here.\n3. Open the chat and ask, for example, \"Create a Smart Link for https://open.spotify.com/album/...\" or \"How did my campaigns do this week?\"\n\nThe agent fills in the artist and Spotify URL itself.",
+        "width": 480,
+        "height": 240
+      }
+    }
+  ],
+  "connections": {
+    "When Chat Message Received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Artists": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Smart Link": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Smart Links": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Artist Analytics": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Campaigns": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
