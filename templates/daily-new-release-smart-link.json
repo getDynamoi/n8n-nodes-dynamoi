@@ -1,6 +1,51 @@
 {
-  "name": "Daily new release to Smart Link",
+  "name": "Create Dynamoi Smart Links for new Spotify releases and post them to Discord",
   "nodes": [
+    {
+      "id": "how-it-works",
+      "name": "How it works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -300
+      ],
+      "parameters": {
+        "content": "## How it works\nEvery morning the workflow asks Dynamoi to create or refresh Smart Links for your Spotify artist, keeps only links it has not posted before, and sends each new link to Discord.",
+        "width": 360,
+        "height": 210
+      }
+    },
+    {
+      "id": "setup",
+      "name": "Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        360,
+        -300
+      ],
+      "parameters": {
+        "content": "## Setup\n1. Connect your Dynamoi account.\n2. Paste your Spotify artist URL in the Dynamoi node.\n3. Add a Discord webhook credential, or swap the last node for Slack.",
+        "width": 340,
+        "height": 210
+      }
+    },
+    {
+      "id": "requirements",
+      "name": "Requirements",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        740,
+        -300
+      ],
+      "parameters": {
+        "content": "## Requirements\n- A Dynamoi account\n- A Spotify artist URL\n- A Discord webhook",
+        "width": 300,
+        "height": 210
+      }
+    },
     {
       "id": "every-morning",
       "name": "Every Morning",
@@ -34,12 +79,6 @@
         "resource": "smartLink",
         "operation": "createForArtist",
         "spotifyArtistUrl": "https://open.spotify.com/artist/REPLACE_WITH_YOUR_ARTIST_ID"
-      },
-      "credentials": {
-        "dynamoiOAuth2Api": {
-          "id": "",
-          "name": "Dynamoi account"
-        }
       }
     },
     {
@@ -57,35 +96,18 @@
       }
     },
     {
-      "id": "only-new-today",
-      "name": "Only New Today",
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2.2,
+      "id": "remove-smart-links-already-posted",
+      "name": "Remove Smart Links Already Posted",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
       "position": [
         780,
         0
       ],
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
-          },
-          "conditions": [
-            {
-              "id": "new-today",
-              "leftValue": "={{ $json.createdAt }}",
-              "rightValue": "={{ $now.minus({ days: 1 }).toISO() }}",
-              "operator": {
-                "type": "dateTime",
-                "operation": "after"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
+        "operation": "removeItemsSeenInPreviousExecutions",
+        "logic": "removeItemsWithAlreadySeenKeyValues",
+        "dedupeValue": "={{ $json.id }}",
         "options": {}
       }
     },
@@ -102,21 +124,6 @@
         "authentication": "webhook",
         "content": "=New Smart Link ready: {{ $json.releaseTitle }} by {{ $json.artistName }}\n{{ $json.publicUrl }}",
         "options": {}
-      }
-    },
-    {
-      "id": "setup",
-      "name": "Setup",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -20,
-        -220
-      ],
-      "parameters": {
-        "content": "**Daily new release to Smart Link**\n1. Connect your Dynamoi account.\n2. Paste your Spotify artist URL.\n3. Add a Discord webhook credential, or swap the last node for Slack.\n\nNew releases get a Smart Link the first time they appear on Spotify. Existing links are refreshed, not duplicated.",
-        "width": 420,
-        "height": 220
       }
     }
   ],
@@ -147,14 +154,14 @@
       "main": [
         [
           {
-            "node": "Only New Today",
+            "node": "Remove Smart Links Already Posted",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Only New Today": {
+    "Remove Smart Links Already Posted": {
       "main": [
         [
           {
@@ -169,8 +176,5 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {},
-  "meta": {
-    "templateCredsSetupCompleted": false
-  }
+  "pinData": {}
 }

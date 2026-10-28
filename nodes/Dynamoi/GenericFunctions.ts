@@ -77,7 +77,7 @@ export async function dynamoiTool(
 	const options: IHttpRequestOptions = {
 		method: 'POST',
 		url: credentials.serverUrl as string,
-		headers: { Accept: 'application/json' },
+		headers: { Accept: 'application/json, text/event-stream' },
 		body: {
 			jsonrpc: '2.0',
 			id: 1,

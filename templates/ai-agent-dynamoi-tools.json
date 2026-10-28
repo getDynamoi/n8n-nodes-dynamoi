@@ -1,6 +1,51 @@
 {
-  "name": "AI agent with Dynamoi tools",
+  "name": "Chat with an AI agent that creates Smart Links and reports results",
   "nodes": [
+    {
+      "id": "how-it-works",
+      "name": "How it works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -340
+      ],
+      "parameters": {
+        "content": "## How it works\nChat with an agent that can look up your artists, create Smart Links from Spotify releases and report Smart Link, audience and campaign results. The agent fills in the artist and Spotify URL itself.",
+        "width": 380,
+        "height": 210
+      }
+    },
+    {
+      "id": "setup",
+      "name": "Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        380,
+        -340
+      ],
+      "parameters": {
+        "content": "## Setup\n1. Connect your Dynamoi account on each Dynamoi tool.\n2. Connect a chat model. OpenAI is shown here, and any chat model works.\n3. Open the chat and ask, for example, \"How did my campaigns do this week?\"",
+        "width": 380,
+        "height": 210
+      }
+    },
+    {
+      "id": "requirements",
+      "name": "Requirements",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        800,
+        -340
+      ],
+      "parameters": {
+        "content": "## Requirements\n- A Dynamoi account with an artist\n- A chat model account",
+        "width": 280,
+        "height": 210
+      }
+    },
     {
       "id": "when-chat-message-received",
       "name": "When Chat Message Received",
@@ -42,24 +87,7 @@
       ],
       "parameters": {
         "options": {}
-      },
-      "credentials": {
-        "openAiApi": {
-          "id": "",
-          "name": "OpenAI account"
-        }
       }
-    },
-    {
-      "id": "chat-memory",
-      "name": "Chat Memory",
-      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
-      "typeVersion": 1.3,
-      "position": [
-        1400,
-        300
-      ],
-      "parameters": {}
     },
     {
       "id": "list-artists",
@@ -76,12 +104,6 @@
         "returnAll": true,
         "descriptionType": "manual",
         "toolDescription": "List the artists in the Dynamoi account. Use this first to find an artist ID."
-      },
-      "credentials": {
-        "dynamoiOAuth2Api": {
-          "id": "",
-          "name": "Dynamoi account"
-        }
       }
     },
     {
@@ -103,13 +125,7 @@
         },
         "spotifyUrl": "={{ $fromAI('spotifyUrl', 'Spotify album or track URL', 'string') }}",
         "descriptionType": "manual",
-        "toolDescription": "Create a Smart Link from a Spotify release URL for an artist."
-      },
-      "credentials": {
-        "dynamoiOAuth2Api": {
-          "id": "",
-          "name": "Dynamoi account"
-        }
+        "toolDescription": "Create a Smart Link from a Spotify release URL for an artist. Use List Artists first for the artist ID."
       }
     },
     {
@@ -132,13 +148,7 @@
         "returnAll": false,
         "limit": 10,
         "descriptionType": "manual",
-        "toolDescription": "List the Smart Links for an artist, newest first."
-      },
-      "credentials": {
-        "dynamoiOAuth2Api": {
-          "id": "",
-          "name": "Dynamoi account"
-        }
+        "toolDescription": "List an artist's Smart Links with their public URLs. Use List Artists first for the artist ID."
       }
     },
     {
@@ -159,16 +169,34 @@
           "value": "={{ $fromAI('artistId', 'Artist ID from the List Artists tool', 'string') }}"
         },
         "options": {
+          "startDate": "={{ $fromAI('startDate', 'First day to include, as YYYY-MM-DD', 'string') }}",
+          "endDate": "={{ $fromAI('endDate', 'Last day to include, as YYYY-MM-DD', 'string') }}",
           "granularity": "TOTAL"
         },
         "descriptionType": "manual",
-        "toolDescription": "Get click and audience totals for an artist."
-      },
-      "credentials": {
-        "dynamoiOAuth2Api": {
-          "id": "",
-          "name": "Dynamoi account"
-        }
+        "toolDescription": "Get campaign clicks and impressions for an artist over a date range. Use List Artists first for the artist ID."
+      }
+    },
+    {
+      "id": "get-audience-analytics",
+      "name": "Get Audience Analytics",
+      "type": "n8n-nodes-dynamoi.dynamoiTool",
+      "typeVersion": 1,
+      "position": [
+        1180,
+        300
+      ],
+      "parameters": {
+        "resource": "analytics",
+        "operation": "getAudience",
+        "artistId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $fromAI('artistId', 'Artist ID from the List Artists tool', 'string') }}"
+        },
+        "range": "={{ $fromAI('range', 'One of 7d, 30d or 90d', 'string') }}",
+        "descriptionType": "manual",
+        "toolDescription": "Get streaming audience by country and service for an artist. Use List Artists first for the artist ID."
       }
     },
     {
@@ -177,7 +205,7 @@
       "type": "n8n-nodes-dynamoi.dynamoiTool",
       "typeVersion": 1,
       "position": [
-        1180,
+        1400,
         300
       ],
       "parameters": {
@@ -191,29 +219,19 @@
         "returnAll": false,
         "limit": 10,
         "descriptionType": "manual",
-        "toolDescription": "List campaigns for an artist with their status."
-      },
-      "credentials": {
-        "dynamoiOAuth2Api": {
-          "id": "",
-          "name": "Dynamoi account"
-        }
+        "toolDescription": "List campaigns for an artist with their status. Use List Artists first for the artist ID."
       }
     },
     {
-      "id": "setup",
-      "name": "Setup",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
+      "id": "chat-memory",
+      "name": "Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
       "position": [
-        -20,
-        -240
+        1620,
+        300
       ],
-      "parameters": {
-        "content": "**AI agent with Dynamoi tools**\n1. Connect your Dynamoi account on each Dynamoi tool.\n2. Pick any chat model. OpenAI is shown here.\n3. Open the chat and ask, for example, \"Create a Smart Link for https://open.spotify.com/album/...\" or \"How did my campaigns do this week?\"\n\nThe agent fills in the artist and Spotify URL itself.",
-        "width": 480,
-        "height": 240
-      }
+      "parameters": {}
     }
   ],
   "connections": {
@@ -294,6 +312,17 @@
         ]
       ]
     },
+    "Get Audience Analytics": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Get Campaigns": {
       "ai_tool": [
         [
@@ -309,8 +338,5 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {},
-  "meta": {
-    "templateCredsSetupCompleted": false
-  }
+  "pinData": {}
 }

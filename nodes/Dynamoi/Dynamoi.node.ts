@@ -7,7 +7,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 import { dynamoiProperties } from './descriptions';
 import { dynamoiTool } from './GenericFunctions';
@@ -24,16 +24,19 @@ const SUBTITLES: Record<string, string> = {
 	'smartLink.get': 'Smart Link: Get',
 	'smartLink.list': 'Smart Link: Get Many',
 	'smartLink.updateDescription': 'Smart Link: Update Description',
-	'smartLink.updateTheme': 'Smart Link: Update Theme',
 	'artist.list': 'Artist: Get Many',
-	'analytics.getArtist': 'Analytics: Artist',
-	'analytics.getAudience': 'Analytics: Audience',
+	'analytics.getArtist': 'Analytics: Get for Artist',
+	'analytics.getAudience': 'Analytics: Get Audience',
 	'campaign.get': 'Campaign: Get',
 	'campaign.list': 'Campaign: Get Many',
 };
 
+function locatorValue(context: IExecuteFunctions, name: string, index: number): string {
+	return context.getNodeParameter(name, index, '', { extractValue: true }) as string;
+}
+
 function artistOf(context: IExecuteFunctions, index: number): string {
-	return context.getNodeParameter('artistId', index, '', { extractValue: true }) as string;
+	return locatorValue(context, 'artistId', index);
 }
 
 function dateRangeOf(
@@ -88,7 +91,7 @@ function buildRequest(
 			return {
 				tool: 'dynamoi_get_smart_link',
 				args: {
-					playLinkId: param('playLinkId'),
+					playLinkId: locatorValue(context, 'playLinkId', index),
 					...(analytics
 						? {
 								includeAnalytics: true,
@@ -111,20 +114,10 @@ function buildRequest(
 			};
 		case 'smartLink.updateDescription':
 			return {
-				tool: 'dynamoi_update_smart_link',
+				tool: 'dynamoi_update_smart_link_description',
 				args: {
-					action: 'update_description',
-					playLinkId: param('playLinkId'),
+					playLinkId: locatorValue(context, 'playLinkId', index),
 					customDescription: param('customDescription') || null,
-				},
-			};
-		case 'smartLink.updateTheme':
-			return {
-				tool: 'dynamoi_update_smart_link',
-				args: {
-					action: 'update_artist_settings',
-					artistId: artistOf(context, index),
-					theme: param('theme'),
 				},
 			};
 		case 'artist.list':
@@ -160,7 +153,7 @@ function buildRequest(
 			return {
 				tool: 'dynamoi_get_campaign',
 				args: {
-					campaignId: param('campaignId'),
+					campaignId: locatorValue(context, 'campaignId', index),
 					...(analytics
 						? {
 								includeAnalytics: true,
@@ -197,8 +190,10 @@ async function listAll(
 			...(cursor ? { cursor } : {}),
 		});
 		rows.push(...((page[listKey] as IDataObject[] | undefined) ?? []));
-		cursor = page.nextCursor as string | undefined;
-	} while (cursor && rows.length < limit);
+		const next = page.nextCursor as string | undefined;
+		if (!next || next === cursor) break;
+		cursor = next;
+	} while (rows.length < limit);
 	return rows.slice(0, limit);
 }
 
@@ -210,7 +205,7 @@ export class Dynamoi implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: `={{ (${JSON.stringify(SUBTITLES)})[$parameter["resource"] + "." + $parameter["operation"]] }}`,
-		description: 'Producing AI music? Promote it free with Dynamoi',
+		description: 'Create Smart Links and read artist, audience and campaign results from Dynamoi',
 		defaults: { name: 'Dynamoi' },
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
@@ -237,6 +232,48 @@ export class Dynamoi implements INodeType {
 						value: String(artist.id ?? artist.artistId),
 					}))
 					.filter((artist) => !needle || artist.name.toLowerCase().includes(needle));
+				return { results, paginationToken: page.nextCursor as string | undefined };
+			},
+
+			async searchSmartLinks(
+				this: ILoadOptionsFunctions,
+				filter?: string,
+				paginationToken?: string,
+			): Promise<INodeListSearchResult> {
+				const artistId = this.getCurrentNodeParameter('artistId', { extractValue: true }) as string;
+				if (!artistId) return { results: [] };
+				const page = await dynamoiTool.call(this, 'dynamoi_list_smart_links', {
+					artistId,
+					limit: 50,
+					...(filter ? { query: filter } : {}),
+					...(paginationToken ? { cursor: paginationToken } : {}),
+				});
+				const results = ((page.smartLinks as IDataObject[] | undefined) ?? []).map((link) => ({
+					name: String(link.releaseTitle ?? link.id),
+					value: String(link.id),
+				}));
+				return { results, paginationToken: page.nextCursor as string | undefined };
+			},
+
+			async searchCampaigns(
+				this: ILoadOptionsFunctions,
+				filter?: string,
+				paginationToken?: string,
+			): Promise<INodeListSearchResult> {
+				const artistId = this.getCurrentNodeParameter('artistId', { extractValue: true }) as string;
+				if (!artistId) return { results: [] };
+				const needle = filter?.toLowerCase();
+				const page = await dynamoiTool.call(this, 'dynamoi_list_campaigns', {
+					artistId,
+					limit: 50,
+					...(paginationToken ? { cursor: paginationToken } : {}),
+				});
+				const results = ((page.campaigns as IDataObject[] | undefined) ?? [])
+					.map((campaign) => ({
+						name: `${String(campaign.contentTitle ?? campaign.id)} (${String(campaign.status ?? '')})`,
+						value: String(campaign.id),
+					}))
+					.filter((campaign) => !needle || campaign.name.toLowerCase().includes(needle));
 				return { results, paginationToken: page.nextCursor as string | undefined };
 			},
 		},
@@ -267,6 +304,13 @@ export class Dynamoi implements INodeType {
 						pairedItem: { item: i },
 					});
 					continue;
+				}
+				if (error instanceof NodeApiError || error instanceof NodeOperationError) {
+					// Keep Dynamoi's own message and description instead of nesting another error.
+					throw new NodeOperationError(this.getNode(), error.message, {
+						itemIndex: i,
+						description: error.description ?? undefined,
+					});
 				}
 				throw new NodeOperationError(this.getNode(), error as Error, { itemIndex: i });
 			}

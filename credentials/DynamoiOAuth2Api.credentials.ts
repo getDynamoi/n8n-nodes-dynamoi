@@ -17,7 +17,9 @@ export class DynamoiOAuth2Api implements ICredentialType {
 
 	// Dynamoi registers n8n as an OAuth client on connect (dynamic client registration), so there
 	// is no client ID or secret to paste. n8n discovers the authorization server from the MCP
-	// endpoint's protected-resource metadata.
+	// endpoint's protected-resource metadata. The directory endpoint is a restricted resource: tokens
+	// issued for it cannot launch campaigns, add funds or start checkouts. n8n takes the requested
+	// scopes from the endpoint's metadata, so they cannot be narrowed from here.
 	properties: INodeProperties[] = [
 		{
 			displayName: 'Use Dynamic Client Registration',
@@ -29,7 +31,7 @@ export class DynamoiOAuth2Api implements ICredentialType {
 			displayName: 'Server URL',
 			name: 'serverUrl',
 			type: 'hidden',
-			default: 'https://dynamoi.com/mcp',
+			default: 'https://dynamoi.com/mcp/directory',
 		},
 	];
 

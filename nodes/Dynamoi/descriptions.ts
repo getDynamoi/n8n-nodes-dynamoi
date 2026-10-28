@@ -4,14 +4,14 @@ const UUID = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-
 
 type Show = { resource: string[]; operation: string[] };
 
-function artistField(show: Show): INodeProperties {
+function artistField(show: Show, optionalHint?: string): INodeProperties {
 	return {
 		displayName: 'Artist',
 		name: 'artistId',
 		type: 'resourceLocator',
 		default: { mode: 'list', value: '' },
-		required: true,
-		description: 'The artist in your Dynamoi account',
+		required: !optionalHint,
+		description: optionalHint ?? 'The artist in your Dynamoi account',
 		displayOptions: { show },
 		modes: [
 			{
@@ -29,6 +29,44 @@ function artistField(show: Show): INodeProperties {
 					{
 						type: 'regex',
 						properties: { regex: `^${UUID}$`, errorMessage: 'Not a valid artist ID' },
+					},
+				],
+			},
+		],
+	};
+}
+
+function idLocator(
+	name: string,
+	displayName: string,
+	searchListMethod: string,
+	show: Show,
+	description: string,
+): INodeProperties {
+	return {
+		displayName,
+		name,
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
+		required: true,
+		description,
+		displayOptions: { show },
+		modes: [
+			{
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				typeOptions: { searchListMethod, searchable: true },
+			},
+			{
+				displayName: 'By ID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. 3f2c9a1e-5b7d-4c8a-9e10-2a6b4d8f0c11',
+				validation: [
+					{
+						type: 'regex',
+						properties: { regex: `^${UUID}$`, errorMessage: 'Not a valid ID' },
 					},
 				],
 			},
@@ -58,13 +96,14 @@ function returnAllFields(show: Show): INodeProperties[] {
 	];
 }
 
-const dateFields = (): INodeProperties[] => [
+const dateFields = (gate = false): INodeProperties[] => [
 	{
 		displayName: 'Start Date',
 		name: 'startDate',
 		type: 'dateTime',
 		default: '',
 		description: 'First day to include. Set an end date too.',
+		...(gate ? { displayOptions: { show: { includeAnalytics: [true] } } } : {}),
 	},
 	{
 		displayName: 'End Date',
@@ -72,6 +111,7 @@ const dateFields = (): INodeProperties[] => [
 		type: 'dateTime',
 		default: '',
 		description: 'Last day to include. Set a start date too.',
+		...(gate ? { displayOptions: { show: { includeAnalytics: [true] } } } : {}),
 	},
 	{
 		displayName: 'Granularity',
@@ -83,6 +123,7 @@ const dateFields = (): INodeProperties[] => [
 		],
 		default: 'TOTAL',
 		description: 'Whether to return one total or one row per day',
+		...(gate ? { displayOptions: { show: { includeAnalytics: [true] } } } : {}),
 	},
 ];
 
@@ -136,21 +177,15 @@ export const dynamoiProperties: INodeProperties[] = [
 			{
 				name: 'Update Description',
 				value: 'updateDescription',
-				description: "Change a Smart Link's public description",
+				description: "Change a Smart Link's public description. Changes the public Smart Link page.",
 				action: 'Update a smart link description',
-			},
-			{
-				name: 'Update Theme',
-				value: 'updateTheme',
-				description: "Change the theme of an artist's Smart Links",
-				action: 'Update the smart link theme for an artist',
 			},
 		],
 		default: 'createFromRelease',
 	},
 	artistField({
 		resource: ['smartLink'],
-		operation: ['createFromRelease', 'list', 'updateTheme'],
+		operation: ['createFromRelease', 'list'],
 	}),
 	{
 		displayName: 'Spotify Release URL',
@@ -172,17 +207,17 @@ export const dynamoiProperties: INodeProperties[] = [
 		description: 'The artist link from Spotify',
 		displayOptions: { show: { resource: ['smartLink'], operation: ['createForArtist'] } },
 	},
-	{
-		displayName: 'Smart Link ID',
-		name: 'playLinkId',
-		type: 'string',
-		default: '',
-		required: true,
-		description: 'The ID of the Smart Link. Get it from the Get Many operation.',
-		displayOptions: {
-			show: { resource: ['smartLink'], operation: ['get', 'updateDescription'] },
-		},
-	},
+	artistField(
+		{ resource: ['smartLink'], operation: ['get', 'updateDescription'] },
+		'Only used to fill the Smart Link list. Not needed when you enter an ID.',
+	),
+	idLocator(
+		'playLinkId',
+		'Smart Link',
+		'searchSmartLinks',
+		{ resource: ['smartLink'], operation: ['get', 'updateDescription'] },
+		'The Smart Link to use',
+	),
 	{
 		displayName: 'Description',
 		name: 'customDescription',
@@ -191,20 +226,6 @@ export const dynamoiProperties: INodeProperties[] = [
 		default: '',
 		description: 'The public description, up to 500 characters. Leave empty to clear it.',
 		displayOptions: { show: { resource: ['smartLink'], operation: ['updateDescription'] } },
-	},
-	{
-		displayName: 'Theme',
-		name: 'theme',
-		type: 'options',
-		options: [
-			{ name: 'Aurora', value: 'aurora' },
-			{ name: 'Brutalist', value: 'brutalist' },
-			{ name: 'Cinematic', value: 'cinematic' },
-			{ name: 'Classic', value: 'classic' },
-		],
-		default: 'classic',
-		description: "The look of the artist's Smart Links",
-		displayOptions: { show: { resource: ['smartLink'], operation: ['updateTheme'] } },
 	},
 	...returnAllFields({ resource: ['smartLink'], operation: ['list'] }),
 	{
@@ -258,13 +279,14 @@ export const dynamoiProperties: INodeProperties[] = [
 				default: false,
 				description: 'Whether to include visit and click analytics for the Smart Link',
 			},
-			...dateFields(),
+			...dateFields(true),
 			{
 				displayName: 'Include Breakdowns',
 				name: 'includeBreakdowns',
 				type: 'boolean',
 				default: false,
 				description: 'Whether to split analytics by source and destination',
+				displayOptions: { show: { includeAnalytics: [true] } },
 			},
 		],
 	},
@@ -324,13 +346,13 @@ export const dynamoiProperties: INodeProperties[] = [
 		displayOptions: { show: { resource: ['analytics'] } },
 		options: [
 			{
-				name: 'Get Artist Analytics',
+				name: 'Get for Artist',
 				value: 'getArtist',
 				description: "Get results across all of an artist's campaigns",
 				action: 'Get artist analytics',
 			},
 			{
-				name: 'Get Audience Analytics',
+				name: 'Get Audience',
 				value: 'getAudience',
 				description: "Get an artist's streaming audience by country, service and day",
 				action: 'Get audience analytics',
@@ -386,15 +408,17 @@ export const dynamoiProperties: INodeProperties[] = [
 		default: 'list',
 	},
 	artistField({ resource: ['campaign'], operation: ['list'] }),
-	{
-		displayName: 'Campaign ID',
-		name: 'campaignId',
-		type: 'string',
-		default: '',
-		required: true,
-		description: 'The ID of the campaign. Get it from the Get Many operation.',
-		displayOptions: { show: { resource: ['campaign'], operation: ['get'] } },
-	},
+	artistField(
+		{ resource: ['campaign'], operation: ['get'] },
+		'Only used to fill the campaign list. Not needed when you enter an ID.',
+	),
+	idLocator(
+		'campaignId',
+		'Campaign',
+		'searchCampaigns',
+		{ resource: ['campaign'], operation: ['get'] },
+		'The campaign to use',
+	),
 	...returnAllFields({ resource: ['campaign'], operation: ['list'] }),
 	{
 		displayName: 'Filters',
@@ -449,7 +473,7 @@ export const dynamoiProperties: INodeProperties[] = [
 				default: false,
 				description: 'Whether to include delivery results for the campaign',
 			},
-			...dateFields(),
+			...dateFields(true),
 		],
 	},
 ];

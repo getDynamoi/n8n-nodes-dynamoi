@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Dynamoi community node for n8n: create Smart Links from Spotify releases and read artist, audience and campaign results. Producing AI music? Promote it free with Dynamoi.",
   "license": "MIT",
-  "homepage": "https://dynamoi.com/docs/mcp-server",
+  "homepage": "https://github.com/getDynamoi/n8n-nodes-dynamoi#readme",
   "keywords": [
     "n8n-community-node-package",
     "dynamoi",
@@ -45,7 +45,7 @@
     ]
   },
   "devDependencies": {
-    "@n8n/node-cli": "*",
+    "@n8n/node-cli": "0.54.4",
     "eslint": "9.32.0",
     "prettier": "3.6.2",
     "release-it": "^21.1.0",

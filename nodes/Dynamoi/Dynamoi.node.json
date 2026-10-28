@@ -2,7 +2,7 @@
 	"node": "n8n-nodes-dynamoi.dynamoi",
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
-	"categories": ["Marketing & Content"],
+	"categories": ["Marketing & Content", "Analytics"],
 	"resources": {
 		"credentialDocumentation": [
 			{ "url": "https://github.com/getDynamoi/n8n-nodes-dynamoi#credentials" }

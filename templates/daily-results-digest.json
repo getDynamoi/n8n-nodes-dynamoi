@@ -1,9 +1,54 @@
 {
-  "name": "Weekly results digest",
+  "name": "Send a daily Dynamoi Smart Link and campaign digest to Slack",
   "nodes": [
     {
-      "id": "every-monday",
-      "name": "Every Monday",
+      "id": "how-it-works",
+      "name": "How it works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -320
+      ],
+      "parameters": {
+        "content": "## How it works\nEvery morning the workflow reads your Dynamoi results for the last seven days, builds a short summary and posts it to Slack. It can also add a row to Google Sheets.",
+        "width": 360,
+        "height": 210
+      }
+    },
+    {
+      "id": "setup",
+      "name": "Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        360,
+        -320
+      ],
+      "parameters": {
+        "content": "## Setup\n1. Connect your Dynamoi account and choose the artist in the three Dynamoi nodes.\n2. Choose a Slack channel.\n3. Optional: enable Add to Google Sheets and pick a sheet with the columns week, smartLinks, activeCampaigns, impressions and clicks.",
+        "width": 380,
+        "height": 210
+      }
+    },
+    {
+      "id": "requirements",
+      "name": "Requirements",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        780,
+        -320
+      ],
+      "parameters": {
+        "content": "## Requirements\n- A Dynamoi account with an artist\n- A Slack account\n- Optional: a Google Sheets account",
+        "width": 300,
+        "height": 210
+      }
+    },
+    {
+      "id": "every-morning",
+      "name": "Every Morning",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -14,10 +59,7 @@
         "rule": {
           "interval": [
             {
-              "field": "weeks",
-              "triggerAtDay": [
-                1
-              ],
+              "field": "days",
               "triggerAtHour": 9
             }
           ]
@@ -46,12 +88,6 @@
           "endDate": "={{ $now.toISODate() }}",
           "granularity": "TOTAL"
         }
-      },
-      "credentials": {
-        "dynamoiOAuth2Api": {
-          "id": "",
-          "name": "Dynamoi account"
-        }
       }
     },
     {
@@ -72,12 +108,6 @@
           "value": ""
         },
         "returnAll": true
-      },
-      "credentials": {
-        "dynamoiOAuth2Api": {
-          "id": "",
-          "name": "Dynamoi account"
-        }
       },
       "executeOnce": true,
       "alwaysOutputData": true
@@ -102,12 +132,6 @@
         "returnAll": true,
         "filters": {
           "status": "ACTIVE"
-        }
-      },
-      "credentials": {
-        "dynamoiOAuth2Api": {
-          "id": "",
-          "name": "Dynamoi account"
         }
       },
       "executeOnce": true,
@@ -159,7 +183,7 @@
               "id": "a6",
               "name": "message",
               "type": "string",
-              "value": "=Dynamoi weekly results ({{ $now.minus({ days: 7 }).toISODate() }} to {{ $now.toISODate() }})\nSmart Links: {{ $('Get Smart Links').all().filter(i => i.json.id).length }}\nActive campaigns: {{ $('Get Active Campaigns').all().filter(i => i.json.id).length }}\nImpressions: {{ $('Get Artist Analytics').first().json.totals.impressions }}\nClicks: {{ $('Get Artist Analytics').first().json.totals.clicks }}"
+              "value": "=Dynamoi daily digest, last 7 days ({{ $now.minus({ days: 7 }).toISODate() }} to {{ $now.toISODate() }})\nSmart Links: {{ $('Get Smart Links').all().filter(i => i.json.id).length }}\nActive campaigns: {{ $('Get Active Campaigns').all().filter(i => i.json.id).length }}\nImpressions: {{ $('Get Artist Analytics').first().json.totals.impressions }}\nClicks: {{ $('Get Artist Analytics').first().json.totals.clicks }}"
             }
           ]
         },
@@ -217,25 +241,10 @@
         "options": {}
       },
       "disabled": true
-    },
-    {
-      "id": "setup",
-      "name": "Setup",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -20,
-        -240
-      ],
-      "parameters": {
-        "content": "**Weekly results digest**\n1. Connect your Dynamoi account and pick the artist in the three Dynamoi nodes.\n2. Choose a Slack channel.\n3. Optional: enable \"Add to Google Sheets\" to keep a weekly log. Create a sheet with the columns week, smartLinks, activeCampaigns, impressions and clicks.",
-        "width": 460,
-        "height": 220
-      }
     }
   ],
   "connections": {
-    "Every Monday": {
+    "Every Morning": {
       "main": [
         [
           {
@@ -299,8 +308,5 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "pinData": {},
-  "meta": {
-    "templateCredsSetupCompleted": false
-  }
+  "pinData": {}
 }
