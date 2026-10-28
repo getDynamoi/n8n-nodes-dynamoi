@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-dynamoi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Dynamoi community node for n8n: create Smart Links from Spotify releases and read artist, audience and campaign results. Producing AI music? Promote it free with Dynamoi.",
   "license": "MIT",
   "homepage": "https://github.com/getDynamoi/n8n-nodes-dynamoi#readme",

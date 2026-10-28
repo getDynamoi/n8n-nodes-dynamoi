@@ -63,7 +63,7 @@ The node can be used as a tool by n8n's AI Agent. Add it from the agent's **Tool
 
 ## Compatibility
 
-Tested with n8n 2.x. The node has no runtime dependencies. It talks to Dynamoi's hosted [MCP server](https://dynamoi.com/docs/mcp-server) at `https://dynamoi.com/mcp`.
+Tested with n8n 2.x. The node has no runtime dependencies. It talks to Dynamoi's hosted [MCP server](https://dynamoi.com/docs/mcp-server) at `https://dynamoi.com/mcp/directory`. That connection cannot launch campaigns, change budgets or start checkout.
 
 ## Support
 
