@@ -1,0 +1,16 @@
+{
+  "validate": [
+    [
+      "npm",
+      "run",
+      "lint"
+    ],
+    [
+      "npm",
+      "run",
+      "build"
+    ]
+  ],
+  "before_push": [],
+  "production": []
+}
