@@ -5,7 +5,7 @@ package identity and npm Trusted Publishing provenance. Never commit real
 credentials; credentials/ contains node credential definitions, not user secrets.
 
 Estate agents use isolated task worktrees, shared estate policy and
-`.agents/skills/deliver/SKILL.md`. `npm run deliver` publishes reviewed Git commits
+`~/.agents/skills/deliver/SKILL.md` and `.agents/delivery.json`. `npm run deliver` publishes reviewed Git commits
 to origin/main. Use Node24, `npm ci`, `npm run lint`, and `npm run build`.
 
 Git delivery is not an npm release. Never invoke `npm run release`, `npm publish`,
